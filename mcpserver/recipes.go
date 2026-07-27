@@ -1,8 +1,8 @@
-// Package tools implements the MCP tools exposing wellness-platform
-// recipe data. The SQL filter-building here mirrors the pattern used
-// in the wellness-platform's own SearchRecipes handler, trimmed down
-// to the filters most useful for an agent caller.
-package tools
+// Package mcpserver implements the MCP tools and HTTP handler exposing
+// wellness-platform recipe data. It's designed to be usable two ways:
+// standalone (see cmd/server in this repo) or imported as a library and
+// mounted into another Go service's router at a chosen path.
+package mcpserver
 
 import (
 	"context"
@@ -10,9 +10,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-
-	"github.com/MerjaR/wellness-mcp-server/internal/db"
 )
 
 // SearchRecipesArgs is the input schema for the search_recipes tool.
@@ -53,7 +52,7 @@ type SearchRecipesResult struct {
 
 // NewSearchRecipesTool returns the MCP tool handler bound to the given
 // database pool.
-func NewSearchRecipesTool(database *db.DB) mcp.ToolHandlerFor[SearchRecipesArgs, SearchRecipesResult] {
+func NewSearchRecipesTool(pool *pgxpool.Pool) mcp.ToolHandlerFor[SearchRecipesArgs, SearchRecipesResult] {
 	return func(ctx context.Context, req *mcp.CallToolRequest, args SearchRecipesArgs) (*mcp.CallToolResult, SearchRecipesResult, error) {
 		where := []string{"1=1"}
 		params := []any{}
@@ -113,7 +112,7 @@ func NewSearchRecipesTool(database *db.DB) mcp.ToolHandlerFor[SearchRecipesArgs,
 		`, whereClause, argIdx)
 		params = append(params, limit)
 
-		rows, err := database.Query(ctx, selectQuery, params...)
+		rows, err := pool.Query(ctx, selectQuery, params...)
 		if err != nil {
 			return nil, SearchRecipesResult{}, fmt.Errorf("recipe search failed: %w", err)
 		}

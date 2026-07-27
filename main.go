@@ -9,10 +9,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/modelcontextprotocol/go-sdk/mcp"
-
 	"github.com/MerjaR/wellness-mcp-server/internal/db"
-	"github.com/MerjaR/wellness-mcp-server/internal/tools"
+	"github.com/MerjaR/wellness-mcp-server/mcpserver"
 )
 
 func main() {
@@ -28,26 +26,7 @@ func main() {
 	}
 	defer database.Close()
 
-	server := mcp.NewServer(&mcp.Implementation{
-		Name:    "wellness-mcp-server",
-		Version: "0.1.0",
-	}, nil)
-
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "search_recipes",
-		Description: "Search the recipe database by free text, cuisine, meal type, dietary tags, and max prep time.",
-	}, tools.NewSearchRecipesTool(database))
-
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "get_recipe_nutrition",
-		Description: "Get full nutrition detail for a recipe by id — totals, per-serving figures, and per-ingredient breakdown.",
-	}, tools.NewGetRecipeNutritionTool(database))
-
-	handler := mcp.NewStreamableHTTPHandler(func(req *http.Request) *mcp.Server {
-		return server
-	}, &mcp.StreamableHTTPOptions{
-		Stateless: true, // no session state needed for stateless data lookups
-	})
+	handler := mcpserver.NewHandler(database.Pool)
 
 	port := os.Getenv("PORT")
 	if port == "" {

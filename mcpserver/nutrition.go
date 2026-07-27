@@ -1,4 +1,4 @@
-package tools
+package mcpserver
 
 import (
 	"context"
@@ -7,9 +7,8 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-
-	"github.com/MerjaR/wellness-mcp-server/internal/db"
 )
 
 // GetRecipeNutritionArgs is the input schema for get_recipe_nutrition.
@@ -49,7 +48,7 @@ type NutritionTotals struct {
 
 // NewGetRecipeNutritionTool returns the MCP tool handler bound to the
 // given database pool.
-func NewGetRecipeNutritionTool(database *db.DB) mcp.ToolHandlerFor[GetRecipeNutritionArgs, GetRecipeNutritionResult] {
+func NewGetRecipeNutritionTool(pool *pgxpool.Pool) mcp.ToolHandlerFor[GetRecipeNutritionArgs, GetRecipeNutritionResult] {
 	return func(ctx context.Context, req *mcp.CallToolRequest, args GetRecipeNutritionArgs) (*mcp.CallToolResult, GetRecipeNutritionResult, error) {
 		if args.RecipeID == "" {
 			return nil, GetRecipeNutritionResult{}, fmt.Errorf("recipe_id is required")
@@ -58,7 +57,7 @@ func NewGetRecipeNutritionTool(database *db.DB) mcp.ToolHandlerFor[GetRecipeNutr
 		var title string
 		var servings int
 		var total NutritionTotals
-		err := database.QueryRow(ctx, `
+		err := pool.QueryRow(ctx, `
 			SELECT title, servings, total_calories_kcal, total_carbs_g, total_protein_g, total_fats_g
 			FROM recipes
 			WHERE id = $1
@@ -70,7 +69,7 @@ func NewGetRecipeNutritionTool(database *db.DB) mcp.ToolHandlerFor[GetRecipeNutr
 			return nil, GetRecipeNutritionResult{}, fmt.Errorf("failed to load recipe: %w", err)
 		}
 
-		rows, err := database.Query(ctx, `
+		rows, err := pool.Query(ctx, `
 			SELECT i.label, ri.quantity, i.unit,
 			       i.calories_kcal, i.carbs_g, i.protein_g, i.fats_g
 			FROM recipe_ingredients ri
