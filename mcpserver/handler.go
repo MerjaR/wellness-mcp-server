@@ -40,5 +40,18 @@ func NewHandler(pool *pgxpool.Pool) http.Handler {
 		return server
 	}, &mcp.StreamableHTTPOptions{
 		Stateless: true, // no session state needed for stateless data lookups
+
+		// The SDK's default DNS-rebinding protection rejects requests
+		// whose Host header doesn't match "localhost" whenever the
+		// underlying TCP connection looks like a loopback connection.
+		// That's meant to protect servers actually running on someone's
+		// own machine — but PaaS platforms like Render terminate the
+		// public request at their edge and forward it to the container
+		// over an internal/loopback-like connection while preserving the
+		// real public Host header, which trips the same check for a
+		// legitimately deployed, internet-facing service. Safe to
+		// disable here since this server is meant to be reached over
+		// the public internet, not just from localhost.
+		DisableLocalhostProtection: true,
 	})
 }
